@@ -7,6 +7,8 @@ interface TopBarProps {
   onResetToSample: () => void;
   onScrollToCreator: () => void;
   onDownloadPdf: () => void;
+  onOpenMyCreations: () => void;
+  savedBooksCount: number;
   isDownloadingPdf: boolean;
   hasBook: boolean;
   bookTitle: string;
@@ -18,6 +20,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onResetToSample,
   onScrollToCreator,
   onDownloadPdf,
+  onOpenMyCreations,
+  savedBooksCount,
   isDownloadingPdf,
   hasBook,
 }) => {
@@ -43,10 +47,15 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span>Book Creator</span>
           </button>
           <button
-            onClick={onResetToSample}
-            className="hover:text-amber-600 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            onClick={onOpenMyCreations}
+            className="hover:text-amber-600 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 font-semibold text-slate-800"
           >
-            <span>Sample Adventure</span>
+            <span>My Creations</span>
+            {savedBooksCount > 0 && (
+              <span className="text-[10px] bg-amber-200 text-amber-950 px-1.5 py-0.2 rounded-full font-bold">
+                {savedBooksCount}
+              </span>
+            )}
           </button>
           <button
             onClick={onOpenColoringStudio}

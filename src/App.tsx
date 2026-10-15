@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import {
   BookOpen,
@@ -12,6 +12,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Printer,
+  Share2,
+  Eye,
 } from 'lucide-react';
 import { ColoringBook, ColoringPage, AgeLevel, ImageResolution } from './types';
 import { getSampleColoringBook } from './utils/sampleData';
@@ -22,10 +24,19 @@ import { BookWorkspace } from './components/BookWorkspace';
 import { ColoringStudioModal } from './components/ColoringStudioModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { ImageZoomModal } from './components/ImageZoomModal';
+import { ShareModal } from './components/ShareModal';
+import { PrintPreviewModal } from './components/PrintPreviewModal';
+import { MyCreationsModal } from './components/MyCreationsModal';
+import { getSavedBooks, saveBookToStorage, deleteBookFromStorage } from './utils/storage';
 
 export default function App() {
   // Current active book
   const [book, setBook] = useState<ColoringBook>(() => getSampleColoringBook('Leo'));
+
+  // Modals & View States
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState<boolean>(false);
+  const [isMyCreationsOpen, setIsMyCreationsOpen] = useState<boolean>(false);
+  const [savedBooks, setSavedBooks] = useState<ColoringBook[]>(() => getSavedBooks());
 
   // Form State
   const [childName, setChildName] = useState<string>('Leo');
@@ -39,6 +50,67 @@ export default function App() {
   const [pdfProgressText, setPdfProgressText] = useState<string>('');
 
   const [quotaNotice, setQuotaNotice] = useState<boolean>(false);
+
+  // Share Modal & URL States
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareExpiresAt, setShareExpiresAt] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [isSharedView, setIsSharedView] = useState<boolean>(false);
+
+  // Check URL parameters for ?share=xyz to view shared coloring progress
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get('share');
+    if (shareId) {
+      fetch(`/api/share/${shareId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Shared book not found or link has expired.');
+          return res.json();
+        })
+        .then((data) => {
+          if (data.book) {
+            setBook(data.book);
+            setIsSharedView(true);
+            setChildName(data.book.childName || 'Explorer');
+            setTheme(data.book.theme || 'Adventure');
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not load shared book:', err);
+        });
+    }
+  }, []);
+
+  // Generate unique temporary share URL for the current book
+  const handleOpenShare = async () => {
+    setIsShareModalOpen(true);
+    setIsSharing(true);
+    setShareError(null);
+
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ book }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to generate share link.');
+      }
+
+      const data = await response.json();
+      setShareUrl(data.shareUrl);
+      setShareExpiresAt(data.expiresAt);
+    } catch (err: any) {
+      console.error('Error generating share link:', err);
+      setShareError(err.message || 'Failed to generate temporary share link.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   // Modals & Drawers
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
@@ -203,6 +275,13 @@ export default function App() {
 
       await Promise.all(generationPromises);
 
+      // Auto-save the newly created book into My Creations storage
+      setBook((finalBook) => {
+        const refreshedList = saveBookToStorage(finalBook);
+        setSavedBooks(refreshedList);
+        return finalBook;
+      });
+
       // Trigger celebratory confetti when the book is ready!
       try {
         confetti({
@@ -286,27 +365,63 @@ export default function App() {
   // Save digitally colored canvas back to the page state
   const handleSaveColoredPage = (pageId: string, dataUrl: string) => {
     setBook((prev) => {
-      if (prev.cover.id === pageId) {
-        return { ...prev, cover: { ...prev.cover, coloredDataUrl: dataUrl } };
-      }
-      return {
+      const updatedBook = {
         ...prev,
+        cover: prev.cover.id === pageId ? { ...prev.cover, coloredDataUrl: dataUrl } : prev.cover,
         pages: prev.pages.map((p) =>
           p.id === pageId ? { ...p, coloredDataUrl: dataUrl } : p
         ),
       };
+
+      // Keep storage in sync if this book is already saved
+      const existing = getSavedBooks();
+      if (existing.some((b) => b.id === prev.id)) {
+        const refreshed = saveBookToStorage(updatedBook);
+        setSavedBooks(refreshed);
+      }
+
+      return updatedBook;
     });
   };
 
+  // My Creations Handlers
+  const handleSaveCurrentBook = () => {
+    const updated = saveBookToStorage(book);
+    setSavedBooks(updated);
+    try {
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: ['#F59E0B', '#10B981', '#3B82F6'],
+      });
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleDeleteBook = (bookId: string) => {
+    const updated = deleteBookFromStorage(bookId);
+    setSavedBooks(updated);
+  };
+
+  const handleSelectBook = (selectedBook: ColoringBook) => {
+    setBook(selectedBook);
+    setChildName(selectedBook.childName || 'Explorer');
+    setTheme(selectedBook.theme || 'Adventure');
+    setAgeLevel(selectedBook.ageLevel || 'early_reader');
+    setResolution(selectedBook.resolution || '2K');
+  };
+
   // Download PDF Handler
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = async (includeDigitalColors = true) => {
     if (isDownloadingPdf) return;
     setIsDownloadingPdf(true);
     setPdfProgressText('Initializing print documents...');
 
     try {
       await exportColoringBookToPdf(book, {
-        includeDigitalColors: true,
+        includeDigitalColors,
         onProgress: (current, total, status) => {
           setPdfProgressText(status);
         },
@@ -339,7 +454,9 @@ export default function App() {
         onOpenColoringStudio={() => setStudioPage(book.pages[0] || book.cover)}
         onResetToSample={handleResetToSample}
         onScrollToCreator={handleScrollToCreator}
-        onDownloadPdf={handleDownloadPdf}
+        onDownloadPdf={() => setIsPrintPreviewOpen(true)}
+        onOpenMyCreations={() => setIsMyCreationsOpen(true)}
+        savedBooksCount={savedBooks.length}
         isDownloadingPdf={isDownloadingPdf}
         hasBook={!!book}
         bookTitle={book.title}
@@ -347,6 +464,36 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {isSharedView && (
+          <div className="bg-slate-900 text-white rounded-3xl p-5 md:p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
+                <Eye className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider bg-slate-800 text-amber-400 px-2.5 py-0.5 rounded-full border border-slate-700">
+                    Online Progress Showcase
+                  </span>
+                </div>
+                <h3 className="text-base font-bold font-display mt-0.5 text-white">
+                  Viewing {book.childName}'s Coloring Book
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Explore {book.childName}'s coloring journey, color any page in the digital studio, or download the PDF.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleScrollToCreator}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-colors shadow-xs shrink-0"
+            >
+              Create Your Own Book
+            </button>
+          </div>
+        )}
+
         {quotaNotice && (
           <div className="bg-amber-50 border border-amber-300/80 rounded-2xl p-4 flex items-center justify-between gap-4 text-amber-950 shadow-xs">
             <div className="flex items-center gap-3">
@@ -423,9 +570,35 @@ export default function App() {
           book={book}
           onOpenColoringStudio={(page) => setStudioPage(page)}
           onRegeneratePage={handleRegeneratePage}
-          onDownloadPdf={handleDownloadPdf}
+          onDownloadPdf={() => setIsPrintPreviewOpen(true)}
           isDownloadingPdf={isDownloadingPdf}
           onOpenZoom={(url, title) => setZoomImage({ url, title })}
+          onOpenShare={handleOpenShare}
+          onOpenPrintPreview={() => setIsPrintPreviewOpen(true)}
+          onSaveBook={handleSaveCurrentBook}
+          isSaved={savedBooks.some((b) => b.id === book.id)}
+          onOpenMyCreations={() => setIsMyCreationsOpen(true)}
+        />
+
+        {/* Print Preview Modal */}
+        <PrintPreviewModal
+          isOpen={isPrintPreviewOpen}
+          onClose={() => setIsPrintPreviewOpen(false)}
+          book={book}
+          onDownloadPdf={(includeColors) => handleDownloadPdf(includeColors)}
+          isDownloadingPdf={isDownloadingPdf}
+          onOpenZoom={(url, title) => setZoomImage({ url, title })}
+        />
+
+        {/* Share Modal */}
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          book={book}
+          shareUrl={shareUrl}
+          expiresAt={shareExpiresAt}
+          isLoading={isSharing}
+          error={shareError}
         />
 
         {/* PDF Download Progress Toast */}
@@ -486,6 +659,22 @@ export default function App() {
         imageUrl={zoomImage?.url || null}
         title={zoomImage?.title || 'Coloring Page'}
         onClose={() => setZoomImage(null)}
+      />
+
+      {/* My Creations Drawer / Modal */}
+      <MyCreationsModal
+        isOpen={isMyCreationsOpen}
+        onClose={() => setIsMyCreationsOpen(false)}
+        savedBooks={savedBooks}
+        activeBookId={book.id}
+        onSelectBook={handleSelectBook}
+        onDeleteBook={handleDeleteBook}
+        onSaveCurrentBook={handleSaveCurrentBook}
+        currentBookIsSaved={savedBooks.some((b) => b.id === book.id)}
+        onOpenPrintPreviewForBook={(selectedBook) => {
+          handleSelectBook(selectedBook);
+          setIsPrintPreviewOpen(true);
+        }}
       />
     </div>
   );

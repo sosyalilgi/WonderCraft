@@ -26,6 +26,85 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'wondercraft', timestamp: new Date().toISOString() });
 });
 
+// Temporary in-memory storage for shared coloring books (7-day TTL)
+interface SharedBookRecord {
+  book: any;
+  expiresAt: number;
+  createdAt: number;
+}
+const sharedBooks = new Map<string, SharedBookRecord>();
+
+// Periodic cleanup of expired shares every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, record] of sharedBooks.entries()) {
+    if (record.expiresAt < now) {
+      sharedBooks.delete(id);
+    }
+  }
+}, 60 * 60 * 1000);
+
+// Endpoint to generate unique temporary share URL
+app.post('/api/share', (req, res) => {
+  try {
+    const { book } = req.body;
+    if (!book || !book.id) {
+      return res.status(400).json({ error: 'Book data is required to create a share link.' });
+    }
+
+    // Generate unique short slug
+    const randomHex = Math.random().toString(36).substring(2, 8);
+    const timestamp = Date.now().toString(36);
+    const shareId = `wc_${randomHex}_${timestamp}`;
+
+    // 7 days expiration (in ms)
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const expiresAt = Date.now() + SEVEN_DAYS_MS;
+
+    sharedBooks.set(shareId, {
+      book,
+      expiresAt,
+      createdAt: Date.now(),
+    });
+
+    const host = req.get('host') || 'localhost:3000';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
+    const shareUrl = `${baseUrl.replace(/\/$/, '')}?share=${shareId}`;
+
+    return res.json({
+      shareId,
+      shareUrl,
+      expiresAt: new Date(expiresAt).toISOString(),
+      expiresInDays: 7,
+    });
+  } catch (error: any) {
+    console.error('Error generating share link:', error);
+    return res.status(500).json({ error: 'Failed to create share link.' });
+  }
+});
+
+// Endpoint to fetch shared book by shareId
+app.get('/api/share/:shareId', (req, res) => {
+  const { shareId } = req.params;
+  const record = sharedBooks.get(shareId);
+
+  if (!record) {
+    return res.status(404).json({ error: 'Shared coloring book not found or link has expired.' });
+  }
+
+  if (record.expiresAt < Date.now()) {
+    sharedBooks.delete(shareId);
+    return res.status(410).json({ error: 'This temporary share link has expired.' });
+  }
+
+  return res.json({
+    book: record.book,
+    expiresAt: new Date(record.expiresAt).toISOString(),
+    createdAt: new Date(record.createdAt).toISOString(),
+  });
+});
+
 // Helper for age-specific style descriptors
 function getAgeStylePrompt(ageLevel: string): string {
   switch (ageLevel) {
