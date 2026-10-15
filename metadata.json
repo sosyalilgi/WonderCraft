@@ -1,0 +1,6 @@
+{
+  "name": "WonderCraft - Children's Coloring Book Generator",
+  "description": "Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

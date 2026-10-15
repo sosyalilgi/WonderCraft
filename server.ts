@@ -1,0 +1,351 @@
+import express from 'express';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { GoogleGenAI, Type } from '@google/genai';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+app.use(express.json({ limit: '30mb' }));
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    },
+  },
+});
+
+// Helper for age-specific style descriptors
+function getAgeStylePrompt(ageLevel: string): string {
+  switch (ageLevel) {
+    case 'toddler':
+      return 'Simple bold chunky lines, thick distinct black contours, extra large open spaces to color, adorable cute baby characters, minimal clutter, large shapes, designed for toddlers and preschool kids ages 2-4.';
+    case 'explorer':
+      return 'Intricate black line art, detailed patterned scenery, dynamic composition, clean linework, fascinating details and textures, designed for creative older kids ages 8+.';
+    case 'early_reader':
+    default:
+      return 'Thick clean black outlines, cheerful expressive cartoon characters, balanced playful background elements, clear coloring sections, designed for early elementary kids ages 5-7.';
+  }
+}
+
+// 1. Outline Generation Endpoint
+app.post('/api/outline', async (req, res) => {
+  try {
+    const { childName = 'Alex', theme = 'space dinosaurs', ageLevel = 'early_reader' } = req.body;
+
+    const ageDesc = getAgeStylePrompt(ageLevel);
+
+    const prompt = `You are a professional children's coloring book author and illustrator planner.
+Create a personalized 5-page coloring storybook for a child named "${childName}" based on the theme "${theme}".
+Target Age Group: "${ageLevel}" (${ageDesc}).
+
+The book must have:
+1. A personalized, exciting "bookTitle" (e.g. "${childName}'s Galactic Dinosaur Adventure").
+2. A "coverPrompt" describing a magnificent coloring book front cover. It should feature an ornate decorative coloring border, big friendly coloring-ready bubble lettering spelling "${childName}'s ${theme.toUpperCase()} COLORING ADVENTURE", and the main cute characters welcoming the child.
+3. An array of exactly 5 chronological, sequential story "pages". Each page must have:
+   - "pageNumber" (1 to 5)
+   - "title" (e.g. "Chapter 1: The Rocket Hatch Opens")
+   - "description" (1-2 sentences of fun, warm, kid-friendly storytelling that parents or kids can read)
+   - "prompt" (detailed art prompt specifying pure black and white line art coloring page, no shading, no grayscale, no color fills, clean white background, depicting the scene clearly).`;
+
+    let responseText = '';
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              bookTitle: { type: Type.STRING },
+              coverPrompt: { type: Type.STRING },
+              pages: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    pageNumber: { type: Type.INTEGER },
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    prompt: { type: Type.STRING },
+                  },
+                  required: ['pageNumber', 'title', 'description', 'prompt'],
+                },
+              },
+            },
+            required: ['bookTitle', 'coverPrompt', 'pages'],
+          },
+        },
+      });
+      responseText = response.text || '';
+    } catch (modelErr: any) {
+      console.warn('Primary model experienced spike, attempting fallback:', modelErr.message);
+      // Fallback to gemini-2.5-flash if gemini-3.8-flash is temporarily 503
+      try {
+        const fallbackRes = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `${prompt}\nReturn valid JSON only matching the schema.`,
+          config: {
+            responseMimeType: 'application/json',
+          },
+        });
+        responseText = fallbackRes.text || '';
+      } catch (fallbackErr) {
+        console.warn('Fallback model also busy, generating curated structured outline');
+      }
+    }
+
+    if (responseText) {
+      try {
+        const parsed = JSON.parse(responseText);
+        if (parsed.pages && parsed.pages.length >= 5) {
+          return res.json(parsed);
+        }
+      } catch (e) {
+        console.error('JSON parse issue on model output:', e);
+      }
+    }
+
+    // High quality tailored fallback outline if APIs are experiencing temporary 503 demand spikes
+    const fallbackOutline = {
+      bookTitle: `${childName}'s ${theme.charAt(0).toUpperCase() + theme.slice(1)} Adventure`,
+      coverPrompt: `Coloring book cover with ornate decorative frame, large bold bubble letters "${childName.toUpperCase()}'S ${theme.toUpperCase()} ADVENTURE", thick black outlines on white background.`,
+      pages: [
+        {
+          pageNumber: 1,
+          title: `Chapter 1: The Adventure Begins`,
+          description: `${childName} steps into a magical world of ${theme}, greeted by cheerful smiling friends.`,
+          prompt: `Children coloring book page, ${theme} setting out on an exciting journey, friendly character waving, bold black outlines, pure white background.`,
+        },
+        {
+          pageNumber: 2,
+          title: `Chapter 2: Discovery and Wonders`,
+          description: `Deep in the realm of ${theme}, an unexpected joyful surprise is discovered!`,
+          prompt: `Children coloring book page, ${theme} exploring a wondrous landscape, fun playful details, clean thick line art, white background.`,
+        },
+        {
+          pageNumber: 3,
+          title: `Chapter 3: Playful Friends Gathering`,
+          description: `All the cute ${theme} companions gather together for a festive celebration.`,
+          prompt: `Children coloring book page, cute animal and character friends from ${theme} having a fun party, thick ink lines, coloring sheet.`,
+        },
+        {
+          pageNumber: 4,
+          title: `Chapter 4: The Great Expedition`,
+          description: `Reaching the highest peaks and brightest stars in the ${theme} kingdom.`,
+          prompt: `Children coloring book page, heroic ${theme} scene with playful action, large open spaces for coloring, clean outlines.`,
+        },
+        {
+          pageNumber: 5,
+          title: `Chapter 5: Sweet Dreams and Memories`,
+          description: `As golden twilight settles over the land, ${childName} and friends rest peacefully under the stars.`,
+          prompt: `Children coloring book page, sleepy calm ${theme} characters cozying up for bedtime under smiling stars, thick black line art.`,
+        },
+      ],
+    };
+
+    return res.json(fallbackOutline);
+  } catch (error: any) {
+    console.error('Error generating outline:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to generate storybook outline.',
+    });
+  }
+});
+
+import { generateThematicColoringSvg } from './serverThematicSvg.ts';
+
+// 2. Image Generation Endpoint using gemini-3-pro-image-preview with graceful fallback
+app.post('/api/generate-image', async (req, res) => {
+  const {
+    prompt,
+    ageLevel = 'early_reader',
+    resolution = '1K', // '1K' | '2K' | '4K'
+    isCover = false,
+    childName = '',
+    pageNumber = 1,
+  } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required.' });
+  }
+
+  const ageStyle = getAgeStylePrompt(ageLevel);
+  const sizeConfig = resolution === '4K' ? '4K' : resolution === '2K' ? '2K' : '1K';
+
+  // Strict prompt formatting to ensure pure line art coloring page
+  let finalPrompt = `Children's coloring book page, black and white line art only, thick bold black ink outlines, pure solid white background, zero grayscale, zero shading, zero color, zero gradients, crisp vector coloring sheet style, printable coloring page. `;
+
+  if (isCover && childName) {
+    finalPrompt += `Front cover of children's coloring book with ornate printable coloring frame and large bubble letters text reading "${childName}'s Adventure". `;
+  }
+
+  finalPrompt += `Subject: ${prompt}. Style notes: ${ageStyle}`;
+
+  let imageUrl = '';
+  let isFallback = false;
+  let quotaNotice = '';
+
+  // Attempt 1: gemini-3-pro-image-preview (High Quality resolution 1K/2K/4K)
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [{ text: finalPrompt }],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: '3:4',
+          imageSize: sizeConfig,
+        },
+      },
+    });
+
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          const mime = part.inlineData.mimeType || 'image/png';
+          imageUrl = `data:${mime};base64,${part.inlineData.data}`;
+          break;
+        }
+      }
+    }
+  } catch (proErr: any) {
+    console.warn(`gemini-3-pro-image failed: ${proErr.message}`);
+    quotaNotice = proErr.message || 'Quota exceeded on gemini-3-pro-image';
+
+    // Attempt 2: gemini-3.1-flash-lite-image
+    try {
+      const flashResponse = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite-image',
+        contents: {
+          parts: [{ text: finalPrompt }],
+        },
+      });
+
+      if (flashResponse.candidates?.[0]?.content?.parts) {
+        for (const part of flashResponse.candidates[0].content.parts) {
+          if (part.inlineData?.data) {
+            const mime = part.inlineData.mimeType || 'image/png';
+            imageUrl = `data:${mime};base64,${part.inlineData.data}`;
+            break;
+          }
+        }
+      }
+    } catch (flashErr: any) {
+      console.warn(`gemini-3.1-flash-lite-image also unavailable: ${flashErr.message}`);
+    }
+  }
+
+  // Attempt 3: High quality printable vector SVG line art
+  if (!imageUrl) {
+    isFallback = true;
+    imageUrl = generateThematicColoringSvg({
+      prompt,
+      childName,
+      isCover,
+      ageLevel,
+      pageNumber,
+    });
+  }
+
+  return res.json({
+    imageUrl,
+    isFallback,
+    quotaNotice: isFallback ? quotaNotice : undefined,
+  });
+});
+
+// 3. Multi-turn Chat Endpoint with gemini-3.8-flash
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { messages = [], childName = '', currentTheme = '' } = req.body;
+
+    // Convert messages to GoogleGenAI format
+    const contents = messages.map((m: any) => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }],
+    }));
+
+    const systemInstruction = `You are "Barnaby the Bookish Bear", a friendly, enthusiastic, and imaginative creative companion inside WonderCraft.
+Your job is to help kids and parents brainstorm delightful, wacky, or adventurous coloring book ideas.
+Current context:
+- Child's Name: ${childName || 'Not specified yet'}
+- Current Theme: ${currentTheme || 'None yet'}
+
+Always keep your tone warm, playful, positive, and child-safe.
+When the user asks for suggestions or brainstorming:
+1. Provide 2-3 creative, vivid theme ideas with catchy titles and brief 1-sentence explanations.
+2. If they ask about characters or story pages, suggest fun scenes (e.g. "Page 1: Dino puts on his shiny helmet", "Page 2: Float past the cheese moon").
+3. Suggest a clear "Recommended Theme" in bold (e.g., **Theme: Steampunk Safari Zoo**) so they can easily pick it.
+Keep replies concise, formatted with friendly bullet points, and under 180 words.`;
+
+    let replyText = '';
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: contents,
+        config: {
+          systemInstruction,
+          temperature: 0.8,
+        },
+      });
+      replyText = response.text || '';
+    } catch (chatErr: any) {
+      console.warn('Chat primary model spike, trying fallback:', chatErr.message);
+      try {
+        const fallbackChat = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: contents,
+          config: {
+            systemInstruction,
+            temperature: 0.8,
+          },
+        });
+        replyText = fallbackChat.text || '';
+      } catch (e) {
+        replyText = `I'd love to help! How about we try a magical adventure like **Theme: Space Dinosaurs on Mars** or **Theme: Tiny Animal Bakery**? Tell me what ${childName || 'your child'} likes most!`;
+      }
+    }
+
+    return res.json({ text: replyText });
+  } catch (error: any) {
+    console.error('Error in chat:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to generate chat response.',
+    });
+  }
+});
+
+// Static / Dev Server integration
+async function startServer() {
+  const isProd = process.env.NODE_ENV === 'production';
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  if (!isProd) {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.get('*', (req, res) => {
+      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+    });
+  }
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Server listening on http://0.0.0.0:${port}`);
+  });
+}
+
+startServer();
