@@ -21,6 +21,11 @@ const ai = new GoogleGenAI({
   },
 });
 
+// Health check endpoint for container monitoring (Dokploy, Traefik, Docker)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'wondercraft', timestamp: new Date().toISOString() });
+});
+
 // Helper for age-specific style descriptors
 function getAgeStylePrompt(ageLevel: string): string {
   switch (ageLevel) {
