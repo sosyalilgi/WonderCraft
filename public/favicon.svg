@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="50%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#grad)" />
+  <!-- Palette icon -->
+  <g filter="url(#shadow)" fill="#FFFFFF">
+    <path d="M32 12C20.95 12 12 20.95 12 32c0 3.03.68 5.9 1.89 8.46.68 1.45.36 3.19-.78 4.29l-.26.25c-.78.78-.51 2.11.53 2.52 2.76 1.09 5.8 1.68 8.97 1.68 4.54 0 7.82-3.1 7.82-7.2 0-2.32 1.88-4.2 4.2-4.2h3.63c6.63 0 12-5.37 12-12 0-8.84-8.06-16-18-16zm-10 16a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm10-5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm11 5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm-1 12a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>
+  </g>
+</svg>

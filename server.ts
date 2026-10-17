@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -24,6 +25,21 @@ const ai = new GoogleGenAI({
 // Health check endpoint for container monitoring (Dokploy, Traefik, Docker)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'wondercraft', timestamp: new Date().toISOString() });
+});
+
+// Favicon handler to avoid browser 404 errors
+app.get(['/favicon.ico', '/favicon.svg'], (req, res) => {
+  const publicSvg = path.resolve(__dirname, 'public', 'favicon.svg');
+  if (fs.existsSync(publicSvg)) {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    return res.sendFile(publicSvg);
+  }
+  const distSvg = path.resolve(__dirname, 'dist', 'favicon.svg');
+  if (fs.existsSync(distSvg)) {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    return res.sendFile(distSvg);
+  }
+  return res.status(204).end();
 });
 
 // Temporary in-memory storage for shared coloring books (7-day TTL)
