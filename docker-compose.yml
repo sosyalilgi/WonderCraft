@@ -8,6 +8,9 @@ services:
     restart: unless-stopped
     ports:
       - "${HOST_PORT:-3050}:3000"
+    networks:
+      - dokploy-network
+      - default
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -18,3 +21,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+networks:
+  dokploy-network:
+    external: true
+  default:

@@ -36,6 +36,7 @@ COPY --from=builder /app/dist ./dist
 COPY server.ts ./
 COPY serverThematicSvg.ts ./
 COPY tsconfig.json ./
+COPY public ./public
 
 # Expose port 3000 (Dokploy / Traefik default)
 EXPOSE 3000
