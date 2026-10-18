@@ -41,9 +41,9 @@ COPY public ./public
 # Expose port 3000 (Dokploy / Traefik default)
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+# Health check using Node's built-in fetch (works reliably across all Alpine versions)
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Start the full-stack server
 CMD ["npm", "start"]

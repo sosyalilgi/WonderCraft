@@ -27,6 +27,17 @@ app.use((req, res, next) => {
 // Serve public assets (favicon.svg, etc.)
 app.use(express.static(path.resolve(__dirname, 'public')));
 
+// Request logging to immediately see incoming requests in Dokploy/Docker console
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    if (req.path !== '/api/health') {
+      console.log(`[HTTP ${res.statusCode}] ${req.method} ${req.originalUrl} (${Date.now() - start}ms)`);
+    }
+  });
+  next();
+});
+
 // Verify and log whether process.env.GEMINI_API_KEY is defined or undefined upon server startup
 console.log(`process.env.GEMINI_API_KEY is: ${process.env.GEMINI_API_KEY !== undefined ? 'defined' : 'undefined'}`);
 
@@ -539,28 +550,39 @@ app.all('/api/*', (req, res) => {
 // Static / Dev Server integration
 async function startServer() {
   const distPath = path.resolve(__dirname, 'dist');
-  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
-  const isProd = process.env.NODE_ENV === 'production' || (hasDist && process.env.NODE_ENV !== 'development');
+  const indexHtmlPath = path.join(distPath, 'index.html');
+  const hasDist = fs.existsSync(indexHtmlPath);
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  if (!isProd) {
+  if (hasDist) {
+    console.log(`[Static] Production assets detected at ${distPath}. Serving dist/`);
+    app.use(express.static(distPath, { index: 'index.html' }));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(indexHtmlPath, (err) => {
+        if (err && !res.headersSent) {
+          console.error(`[Static Error] Failed to serve index.html for ${req.originalUrl}:`, err.message);
+          res.status(500).send('Application Error: dist/index.html could not be sent.');
+        }
+      });
+    });
+  } else {
+    console.log(`[Dev/Fallback] dist/index.html not found, mounting Vite middleware for live serving...`);
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on http://0.0.0.0:${port}`);
     console.log(`process.env.GEMINI_API_KEY is: ${process.env.GEMINI_API_KEY !== undefined ? 'defined' : 'undefined'}`);
     console.log(`[Startup Verification] GEMINI_API_KEY status: ${process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() ? 'DETECTED & READY' : 'NOT DETECTED (Fallback mode active)'}`);
+    console.log(`[Static Mode] ${hasDist ? 'Serving pre-built dist/ folder' : 'Serving via live Vite middleware'}`);
   });
 }
 

@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     ports:
       - "${HOST_PORT:-3050}:3000"
+    expose:
+      - "3000"
     networks:
       - dokploy-network
       - default
@@ -15,12 +17,26 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+    labels:
+      - "traefik.enable=true"
+      # HTTPS Router for Dokploy Traefik
+      - "traefik.http.routers.wondercraft.rule=Host(`${DOMAIN:-wondercraft.genpro.cloud}`)"
+      - "traefik.http.routers.wondercraft.entrypoints=websecure"
+      - "traefik.http.routers.wondercraft.tls=true"
+      - "traefik.http.routers.wondercraft.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.wondercraft.service=wondercraft-svc"
+      # HTTP Router (allows fallback / redirection)
+      - "traefik.http.routers.wondercraft-http.rule=Host(`${DOMAIN:-wondercraft.genpro.cloud}`)"
+      - "traefik.http.routers.wondercraft-http.entrypoints=web"
+      - "traefik.http.routers.wondercraft-http.service=wondercraft-svc"
+      # Service definition pointing directly to container port 3000
+      - "traefik.http.services.wondercraft-svc.loadbalancer.server.port=3000"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   dokploy-network:
