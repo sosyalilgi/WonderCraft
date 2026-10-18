@@ -13,8 +13,35 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json({ limit: '30mb' }));
 
+// CORS headers to prevent 404/CORS issues on reverse proxy or external domains
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// Serve public assets (favicon.svg, etc.)
+app.use(express.static(path.resolve(__dirname, 'public')));
+
+// Verify and log whether process.env.GEMINI_API_KEY is defined or undefined upon server startup
+console.log(`process.env.GEMINI_API_KEY is: ${process.env.GEMINI_API_KEY !== undefined ? 'defined' : 'undefined'}`);
+
+const rawGeminiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '';
+if (rawGeminiKey) {
+  const masked = rawGeminiKey.length > 8
+    ? `${rawGeminiKey.slice(0, 4)}...${rawGeminiKey.slice(-4)}`
+    : '***';
+  console.log(`[Config] GEMINI_API_KEY is successfully loaded from environment: ${masked} (length: ${rawGeminiKey.length})`);
+} else {
+  console.warn('[Config] WARNING: GEMINI_API_KEY is not defined or empty in process.env. Ensure GEMINI_API_KEY is set in .env or Dokploy/Docker environment variables.');
+}
+
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: rawGeminiKey || undefined,
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -22,9 +49,32 @@ const ai = new GoogleGenAI({
   },
 });
 
+// Root API discovery endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    name: 'WonderCraft API',
+    status: 'online',
+    version: '1.0.0',
+    endpoints: [
+      'GET  /api/health',
+      'POST /api/outline',
+      'POST /api/generate-image',
+      'POST /api/chat',
+      'POST /api/share',
+      'GET  /api/share/:shareId',
+    ],
+  });
+});
+
 // Health check endpoint for container monitoring (Dokploy, Traefik, Docker)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'wondercraft', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'wondercraft',
+    geminiKeyStatus: process.env.GEMINI_API_KEY !== undefined ? 'defined' : 'undefined',
+    geminiConfigured: Boolean(rawGeminiKey),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Favicon handler to avoid browser 404 errors
@@ -424,9 +474,29 @@ Keep replies concise, formatted with friendly bullet points, and under 180 words
   }
 });
 
+// Explicit 404 handler for any unmatched /api/* routes (ensures JSON 404 instead of HTML)
+app.all('/api/*', (req, res) => {
+  res.status(404).json({
+    error: 'API endpoint not found',
+    method: req.method,
+    path: req.originalUrl,
+    availableEndpoints: [
+      'GET  /api',
+      'GET  /api/health',
+      'POST /api/outline',
+      'POST /api/generate-image',
+      'POST /api/chat',
+      'POST /api/share',
+      'GET  /api/share/:shareId',
+    ],
+  });
+});
+
 // Static / Dev Server integration
 async function startServer() {
-  const isProd = process.env.NODE_ENV === 'production';
+  const distPath = path.resolve(__dirname, 'dist');
+  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+  const isProd = process.env.NODE_ENV === 'production' || (hasDist && process.env.NODE_ENV !== 'development');
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   if (!isProd) {
@@ -437,14 +507,16 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
   app.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on http://0.0.0.0:${port}`);
+    console.log(`process.env.GEMINI_API_KEY is: ${process.env.GEMINI_API_KEY !== undefined ? 'defined' : 'undefined'}`);
+    console.log(`[Startup Verification] GEMINI_API_KEY status: ${process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() ? 'DETECTED & READY' : 'NOT DETECTED (Fallback mode active)'}`);
   });
 }
 
