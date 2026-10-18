@@ -95,7 +95,7 @@ export const BookSetupForm: React.FC<BookSetupFormProps> = ({
               className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 text-sm font-medium bg-slate-50/50"
             />
             <span className="text-[11px] text-slate-400 mt-1 block">
-              Any imaginative idea! Barnaby can also brainstorm themes for you.
+              Any imaginative idea! Tulpar can also brainstorm themes for you.
             </span>
           </div>
         </div>

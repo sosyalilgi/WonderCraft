@@ -1,21 +1,139 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
+    <!-- Character Encoding & Viewport -->
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Primary SEO Metadata -->
     <title>WonderCraft - Children's Coloring Book Generator</title>
-    <meta name="description" content="Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books." />
-    <meta property="og:title" content="WonderCraft - Children's Coloring Book Generator" />
-    <meta property="og:description" content="Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books." />
+    <meta name="title" content="WonderCraft - Children's Coloring Book Generator" />
+    <meta
+      name="description"
+      content="Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books."
+    />
+    <meta
+      name="keywords"
+      content="coloring book generator, AI coloring pages, printable coloring sheets for kids, children activity book, coloring canvas, clean line art generator, PDF coloring book, storybook coloring"
+    />
+    <meta name="author" content="WonderCraft" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://wondercraft.app/" id="canonical-url" />
+
+    <!-- OpenGraph / Facebook / LinkedIn / WhatsApp -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WonderCraft" />
+    <meta property="og:title" content="WonderCraft - Children's Coloring Book Generator" />
+    <meta
+      property="og:description"
+      content="Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books."
+    />
+    <meta property="og:image" content="/og-image.svg" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="WonderCraft AI Coloring Book Generator Preview" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@WonderCraftApp" />
+    <meta name="twitter:creator" content="@WonderCraftApp" />
+    <meta name="twitter:title" content="WonderCraft - Children's Coloring Book Generator" />
+    <meta
+      name="twitter:description"
+      content="Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books."
+    />
+    <meta name="twitter:image" content="/og-image.svg" />
+    <meta name="twitter:image:alt" content="WonderCraft AI Coloring Book Generator Preview" />
+
+    <!-- Mobile, PWA & Browser Theme -->
+    <meta name="theme-color" content="#4F46E5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WonderCraft" />
+    <meta name="application-name" content="WonderCraft" />
+    <meta name="msapplication-TileColor" content="#4F46E5" />
+
+    <!-- Icons & Manifest -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Google Fonts Preconnect & Stylesheet -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Schema.org Structured Data: WebApplication -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "WonderCraft",
+        "alternateName": "WonderCraft Coloring Book Generator",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "All",
+        "description": "Create personalized children's coloring books with custom themes, thick black-and-white line art, interactive coloring canvas, and downloadable PDF books.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "AI-powered custom theme coloring page generation",
+          "Clean, thick black-and-white line art outlines optimized for coloring",
+          "Interactive digital canvas with color palette and fill bucket",
+          "Multi-page storybook coloring album creation",
+          "High-resolution printable PDF export",
+          "Instant coloring book sharing via link"
+        ],
+        "screenshot": "/og-image.svg"
+      }
+    </script>
+
+    <!-- Schema.org Structured Data: FAQPage for Search Rich Snippets -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How does WonderCraft generate coloring book pages?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "WonderCraft uses AI to generate custom outline sketches with clean, thick black-and-white contours, perfectly tailored for kids to color."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I export coloring books as printable PDFs?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, you can export your entire coloring book or individual pages as high-resolution printable PDF documents ready for standard home or school printers."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can kids color online on tablets or desktop computers?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, WonderCraft includes an interactive coloring canvas with digital brush, flood fill bucket, custom color palette, and undo/redo tools that work seamlessly on touchscreens and desktops."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

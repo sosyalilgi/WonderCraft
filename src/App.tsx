@@ -83,6 +83,34 @@ export default function App() {
     }
   }, []);
 
+  // Dynamic SEO: Keep canonical URL and social preview URLs synchronized with window.location
+  useEffect(() => {
+    try {
+      const canonicalEl = document.getElementById('canonical-url') as HTMLLinkElement | null;
+      if (canonicalEl) {
+        canonicalEl.href = window.location.origin + window.location.pathname;
+      }
+
+      let ogUrlMeta = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
+      if (!ogUrlMeta) {
+        ogUrlMeta = document.createElement('meta');
+        ogUrlMeta.setAttribute('property', 'og:url');
+        document.head.appendChild(ogUrlMeta);
+      }
+      ogUrlMeta.content = window.location.href;
+
+      let twitterUrlMeta = document.querySelector('meta[name="twitter:url"]') as HTMLMetaElement | null;
+      if (!twitterUrlMeta) {
+        twitterUrlMeta = document.createElement('meta');
+        twitterUrlMeta.setAttribute('name', 'twitter:url');
+        document.head.appendChild(twitterUrlMeta);
+      }
+      twitterUrlMeta.content = window.location.href;
+    } catch {
+      // Fallback silently if document is not accessible
+    }
+  }, [book.id, isSharedView]);
+
   // Generate unique temporary share URL for the current book
   const handleOpenShare = async () => {
     setIsShareModalOpen(true);

@@ -37,9 +37,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     {
       id: 'welcome-msg',
       role: 'assistant',
-      content: `Hello! I'm Barnaby the Bookish Bear, your coloring book creative partner! 🐻✨\n\nTell me what kind of stories or adventures ${
+      content: `Hello! I'm Tulpar, your magical winged storyteller and creative partner! 🪽✨\n\nTell me what kind of stories or adventures ${
         childName || 'your child'
-      } loves, and I'll brainstorm magical themes, character names, and 5-page story plots for your coloring book!`,
+      } loves, and we'll soar together to brainstorm magical themes, character names, and 5-page story plots for your coloring book!`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -101,7 +101,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       const errorMsg: ChatMessage = {
         id: `assistant-err-${Date.now()}`,
         role: 'assistant',
-        content: 'Oh bumbleberries! My brainstorming pencil broke for a second. Please try asking again!',
+        content: 'Tulpar encountered a strong headwind in the clouds! Please try asking again in a moment.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -135,10 +135,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </div>
           <div>
             <h3 className="font-bold text-sm tracking-tight font-display">
-              Barnaby's Story Den
+              Tulpar's Story Realm
             </h3>
             <span className="text-[11px] text-amber-900 font-medium">
-              Creative Story & Theme Brainstormer (Gemini 3.8 Flash)
+              Winged Story & Theme Brainstormer (Gemini 3.8 Flash)
             </span>
           </div>
         </div>
@@ -235,7 +235,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs p-3 text-xs text-slate-500 flex items-center gap-2">
-              <span className="animate-pulse">Barnaby is cooking up creative story ideas...</span>
+              <span className="animate-pulse">Tulpar is soaring through imaginative story ideas...</span>
             </div>
           </div>
         )}
@@ -254,7 +254,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder={`Ask Barnaby for themes or story ideas...`}
+          placeholder={`Ask Tulpar for themes or story ideas...`}
           className="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 bg-slate-50/60"
         />
         <button

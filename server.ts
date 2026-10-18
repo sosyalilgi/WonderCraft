@@ -77,7 +77,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Favicon handler to avoid browser 404 errors
+// Favicon & SEO Static Handlers to guarantee correct MIME types across reverse proxies
 app.get(['/favicon.ico', '/favicon.svg'], (req, res) => {
   const publicSvg = path.resolve(__dirname, 'public', 'favicon.svg');
   if (fs.existsSync(publicSvg)) {
@@ -90,6 +90,50 @@ app.get(['/favicon.ico', '/favicon.svg'], (req, res) => {
     return res.sendFile(distSvg);
   }
   return res.status(204).end();
+});
+
+app.get('/robots.txt', (req, res) => {
+  const file = fs.existsSync(path.resolve(__dirname, 'public', 'robots.txt'))
+    ? path.resolve(__dirname, 'public', 'robots.txt')
+    : path.resolve(__dirname, 'dist', 'robots.txt');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  if (fs.existsSync(file)) {
+    return res.sendFile(file);
+  }
+  return res.send('User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: /sitemap.xml\n');
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const file = fs.existsSync(path.resolve(__dirname, 'public', 'sitemap.xml'))
+    ? path.resolve(__dirname, 'public', 'sitemap.xml')
+    : path.resolve(__dirname, 'dist', 'sitemap.xml');
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  if (fs.existsSync(file)) {
+    return res.sendFile(file);
+  }
+  return res.status(404).send('Sitemap not found');
+});
+
+app.get('/site.webmanifest', (req, res) => {
+  const file = fs.existsSync(path.resolve(__dirname, 'public', 'site.webmanifest'))
+    ? path.resolve(__dirname, 'public', 'site.webmanifest')
+    : path.resolve(__dirname, 'dist', 'site.webmanifest');
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  if (fs.existsSync(file)) {
+    return res.sendFile(file);
+  }
+  return res.status(404).send('Manifest not found');
+});
+
+app.get('/og-image.svg', (req, res) => {
+  const file = fs.existsSync(path.resolve(__dirname, 'public', 'og-image.svg'))
+    ? path.resolve(__dirname, 'public', 'og-image.svg')
+    : path.resolve(__dirname, 'dist', 'og-image.svg');
+  res.setHeader('Content-Type', 'image/svg+xml');
+  if (fs.existsSync(file)) {
+    return res.sendFile(file);
+  }
+  return res.status(404).end();
 });
 
 // Temporary in-memory storage for shared coloring books (7-day TTL)
@@ -424,13 +468,13 @@ app.post('/api/chat', async (req, res) => {
       parts: [{ text: m.content }],
     }));
 
-    const systemInstruction = `You are "Barnaby the Bookish Bear", a friendly, enthusiastic, and imaginative creative companion inside WonderCraft.
-Your job is to help kids and parents brainstorm delightful, wacky, or adventurous coloring book ideas.
+    const systemInstruction = `You are "Tulpar", the legendary winged storyteller and imaginative creative companion inside WonderCraft (inspired by the noble winged steed of ancient Turkic mythology).
+Your job is to help kids and parents brainstorm delightful, adventurous, and inspiring coloring book ideas, lifting their imagination to new heights!
 Current context:
 - Child's Name: ${childName || 'Not specified yet'}
 - Current Theme: ${currentTheme || 'None yet'}
 
-Always keep your tone warm, playful, positive, and child-safe.
+Always keep your tone warm, playful, positive, heroic, and child-safe.
 When the user asks for suggestions or brainstorming:
 1. Provide 2-3 creative, vivid theme ideas with catchy titles and brief 1-sentence explanations.
 2. If they ask about characters or story pages, suggest fun scenes (e.g. "Page 1: Dino puts on his shiny helmet", "Page 2: Float past the cheese moon").

@@ -1,0 +1,7 @@
+# Robots.txt for WonderCraft Coloring Book Generator
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap
+Sitemap: /sitemap.xml
